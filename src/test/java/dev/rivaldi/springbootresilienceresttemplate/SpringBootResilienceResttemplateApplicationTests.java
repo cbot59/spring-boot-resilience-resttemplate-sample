@@ -3,6 +3,7 @@ package dev.rivaldi.springbootresilienceresttemplate;
 import com.github.tomakehurst.wiremock.WireMockServer;
 import com.github.tomakehurst.wiremock.client.WireMock;
 import com.github.tomakehurst.wiremock.core.WireMockConfiguration;
+import io.github.resilience4j.circuitbreaker.CircuitBreaker;
 import io.github.resilience4j.circuitbreaker.CircuitBreakerRegistry;
 import org.junit.jupiter.api.*;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -50,7 +51,7 @@ class SpringBootResilienceResttemplateApplicationTests {
     void resetWireMock() {
         wireMockServer.resetAll();
         circuitBreakerRegistry.getAllCircuitBreakers()
-                .forEach(cb -> cb.reset());
+                .forEach(CircuitBreaker::reset);
     }
 
     @Test

@@ -108,11 +108,10 @@ public class DemoController {
     public ResponseEntity<String> testPost(
             @RequestParam(defaultValue = "https://httpbin.org/post") String url,
             @RequestBody(required = false) Map<String, Object> body) {
-        ResponseEntity<String> result = externalApiService.postWithResilience(
+        return externalApiService.postWithResilience(
                 url,
                 body != null ? body : Map.of("test", "data")
         );
-        return result;
     }
 
     /**

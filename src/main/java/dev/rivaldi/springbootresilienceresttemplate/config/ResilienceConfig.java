@@ -9,9 +9,9 @@ import org.springframework.context.annotation.Configuration;
 @Configuration
 public class ResilienceConfig {
 
-    /**
-     * Example: Programmatic CircuitBreaker customization for a specific instance.
-     * Uncomment and modify as needed.
+    /*
+      Example: Programmatic CircuitBreaker customization for a specific instance.
+      Uncomment and modify as needed.
      */
     // @Bean
     // public CircuitBreakerConfigCustomizer customCircuitBreakerConfig() {
@@ -23,9 +23,9 @@ public class ResilienceConfig {
     //     );
     // }
 
-    /**
-     * Example: Programmatic Retry customization for a specific instance.
-     * Uncomment and modify as needed.
+    /*
+      Example: Programmatic Retry customization for a specific instance.
+      Uncomment and modify as needed.
      */
     // @Bean
     // public RetryConfigCustomizer customRetryConfig() {

@@ -4,6 +4,8 @@ import io.github.resilience4j.circuitbreaker.CircuitBreaker;
 import io.github.resilience4j.circuitbreaker.CircuitBreakerRegistry;
 import io.github.resilience4j.retry.Retry;
 import io.github.resilience4j.retry.RetryRegistry;
+import lombok.AccessLevel;
+import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.core.ParameterizedTypeReference;
@@ -24,6 +26,7 @@ import java.util.function.Supplier;
 @RequiredArgsConstructor
 public class ResilientRestTemplate {
 
+    @Getter(AccessLevel.PACKAGE)
     private final RestTemplate restTemplate;
     private final CircuitBreakerRegistry circuitBreakerRegistry;
     private final RetryRegistry retryRegistry;
@@ -310,10 +313,4 @@ public class ResilientRestTemplate {
         return decoratedSupplier.get();
     }
 
-    /**
-     * Get underlying RestTemplate for cases needing direct access
-     */
-    public RestTemplate getRestTemplate() {
-        return restTemplate;
-    }
 }

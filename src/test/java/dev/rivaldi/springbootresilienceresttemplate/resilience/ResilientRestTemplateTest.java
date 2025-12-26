@@ -34,8 +34,6 @@ class ResilientRestTemplateTest {
     @Mock
     private RestTemplate restTemplate;
 
-    private CircuitBreakerRegistry circuitBreakerRegistry;
-    private RetryRegistry retryRegistry;
     private ResilientRestTemplate resilientRestTemplate;
 
     @BeforeEach
@@ -47,19 +45,19 @@ class ResilientRestTemplateTest {
                 .minimumNumberOfCalls(3)
                 .waitDurationInOpenState(Duration.ofSeconds(5))
                 .build();
-        circuitBreakerRegistry = CircuitBreakerRegistry.of(cbConfig);
+        CircuitBreakerRegistry circuitBreakerRegistry = CircuitBreakerRegistry.of(cbConfig);
 
         RetryConfig retryConfig = RetryConfig.custom()
                 .maxAttempts(3)
                 .waitDuration(Duration.ofMillis(100))
                 .retryExceptions(HttpServerErrorException.class)
                 .build();
-        retryRegistry = RetryRegistry.of(retryConfig);
+        RetryRegistry retryRegistry = RetryRegistry.of(retryConfig);
 
         resilientRestTemplate = new ResilientRestTemplate(
                 restTemplate,
-                circuitBreakerRegistry,
-                retryRegistry
+            circuitBreakerRegistry,
+            retryRegistry
         );
     }
 

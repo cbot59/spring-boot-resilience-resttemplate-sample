@@ -36,7 +36,7 @@ class ExternalApiServiceTest {
     private ExternalApiService externalApiService;
 
     @BeforeEach
-    void setUp() throws Exception {
+    void setUp() {
         externalApiService = new ExternalApiService(
                 resilientRestTemplate,
                 restTemplate,
