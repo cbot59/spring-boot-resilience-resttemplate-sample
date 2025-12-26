@@ -400,4 +400,280 @@ class SpringBootResilienceResttemplateApplicationTests {
             verify(1, getRequestedFor(urlEqualTo("/api/acceptable-delay")));
         }
     }
+
+    @Nested
+    @DisplayName("Retry Exception Configuration Tests")
+    class RetryExceptionConfigTests {
+
+        @Test
+        @DisplayName("Should retry on HttpServerErrorException (500) - configured in retryExceptions")
+        void shouldRetryOnHttpServerErrorException() throws Exception {
+            // 500 Internal Server Error triggers HttpServerErrorException which is in retryExceptions
+            wireMockServer.stubFor(WireMock.get(urlEqualTo("/api/retry-500"))
+                    .inScenario("500 Retry")
+                    .whenScenarioStateIs("Started")
+                    .willReturn(aResponse().withStatus(500))
+                    .willSetStateTo("Retried"));
+
+            wireMockServer.stubFor(WireMock.get(urlEqualTo("/api/retry-500"))
+                    .inScenario("500 Retry")
+                    .whenScenarioStateIs("Retried")
+                    .willReturn(aResponse()
+                            .withStatus(200)
+                            .withHeader("Content-Type", "application/json")
+                            .withBody("{\"message\": \"recovered from 500\"}")));
+
+            mockMvc.perform(get("/api/demo/default")
+                            .param("url", "http://localhost:8089/api/retry-500"))
+                    .andExpect(status().isOk())
+                    .andExpect(content().string(containsString("recovered from 500")));
+
+            // Should have retried - 2 requests total
+            verify(2, getRequestedFor(urlEqualTo("/api/retry-500")));
+        }
+
+        @Test
+        @DisplayName("Should retry on 502 Bad Gateway - HttpServerErrorException in retryExceptions")
+        void shouldRetryOn502BadGateway() throws Exception {
+            wireMockServer.stubFor(WireMock.get(urlEqualTo("/api/retry-502"))
+                    .inScenario("502 Retry")
+                    .whenScenarioStateIs("Started")
+                    .willReturn(aResponse().withStatus(502))
+                    .willSetStateTo("Retried"));
+
+            wireMockServer.stubFor(WireMock.get(urlEqualTo("/api/retry-502"))
+                    .inScenario("502 Retry")
+                    .whenScenarioStateIs("Retried")
+                    .willReturn(aResponse()
+                            .withStatus(200)
+                            .withHeader("Content-Type", "application/json")
+                            .withBody("{\"message\": \"recovered from 502\"}")));
+
+            mockMvc.perform(get("/api/demo/default")
+                            .param("url", "http://localhost:8089/api/retry-502"))
+                    .andExpect(status().isOk())
+                    .andExpect(content().string(containsString("recovered from 502")));
+
+            verify(2, getRequestedFor(urlEqualTo("/api/retry-502")));
+        }
+
+        @Test
+        @DisplayName("Should retry on 503 Service Unavailable - HttpServerErrorException in retryExceptions")
+        void shouldRetryOn503ServiceUnavailable() throws Exception {
+            wireMockServer.stubFor(WireMock.get(urlEqualTo("/api/retry-503"))
+                    .inScenario("503 Retry")
+                    .whenScenarioStateIs("Started")
+                    .willReturn(aResponse().withStatus(503))
+                    .willSetStateTo("Retried"));
+
+            wireMockServer.stubFor(WireMock.get(urlEqualTo("/api/retry-503"))
+                    .inScenario("503 Retry")
+                    .whenScenarioStateIs("Retried")
+                    .willReturn(aResponse()
+                            .withStatus(200)
+                            .withHeader("Content-Type", "application/json")
+                            .withBody("{\"message\": \"recovered from 503\"}")));
+
+            mockMvc.perform(get("/api/demo/default")
+                            .param("url", "http://localhost:8089/api/retry-503"))
+                    .andExpect(status().isOk())
+                    .andExpect(content().string(containsString("recovered from 503")));
+
+            verify(2, getRequestedFor(urlEqualTo("/api/retry-503")));
+        }
+
+        @Test
+        @DisplayName("Should retry on 504 Gateway Timeout - HttpServerErrorException in retryExceptions")
+        void shouldRetryOn504GatewayTimeout() throws Exception {
+            wireMockServer.stubFor(WireMock.get(urlEqualTo("/api/retry-504"))
+                    .inScenario("504 Retry")
+                    .whenScenarioStateIs("Started")
+                    .willReturn(aResponse().withStatus(504))
+                    .willSetStateTo("Retried"));
+
+            wireMockServer.stubFor(WireMock.get(urlEqualTo("/api/retry-504"))
+                    .inScenario("504 Retry")
+                    .whenScenarioStateIs("Retried")
+                    .willReturn(aResponse()
+                            .withStatus(200)
+                            .withHeader("Content-Type", "application/json")
+                            .withBody("{\"message\": \"recovered from 504\"}")));
+
+            mockMvc.perform(get("/api/demo/default")
+                            .param("url", "http://localhost:8089/api/retry-504"))
+                    .andExpect(status().isOk())
+                    .andExpect(content().string(containsString("recovered from 504")));
+
+            verify(2, getRequestedFor(urlEqualTo("/api/retry-504")));
+        }
+    }
+
+    @Nested
+    @DisplayName("Ignore Exception Configuration Tests")
+    class IgnoreExceptionConfigTests {
+
+        @Test
+        @DisplayName("Should NOT retry on 400 Bad Request - configured in ignoreExceptions")
+        void shouldNotRetryOn400BadRequest() throws Exception {
+            // 400 Bad Request triggers HttpClientErrorException.BadRequest which is in ignoreExceptions
+            wireMockServer.stubFor(WireMock.get(urlEqualTo("/api/no-retry-400"))
+                    .willReturn(aResponse()
+                            .withStatus(400)
+                            .withHeader("Content-Type", "application/json")
+                            .withBody("{\"error\": \"Bad Request\"}")));
+
+            mockMvc.perform(get("/api/demo/default")
+                            .param("url", "http://localhost:8089/api/no-retry-400"))
+                    .andExpect(status().isBadRequest());
+
+            // Should NOT retry - only 1 request
+            verify(1, getRequestedFor(urlEqualTo("/api/no-retry-400")));
+        }
+
+        @Test
+        @DisplayName("Should NOT retry on 404 Not Found - configured in ignoreExceptions")
+        void shouldNotRetryOn404NotFound() throws Exception {
+            // 404 Not Found triggers HttpClientErrorException.NotFound which is in ignoreExceptions
+            wireMockServer.stubFor(WireMock.get(urlEqualTo("/api/no-retry-404"))
+                    .willReturn(aResponse()
+                            .withStatus(404)
+                            .withHeader("Content-Type", "application/json")
+                            .withBody("{\"error\": \"Not Found\"}")));
+
+            mockMvc.perform(get("/api/demo/default")
+                            .param("url", "http://localhost:8089/api/no-retry-404"))
+                    .andExpect(status().isNotFound());
+
+            // Should NOT retry - only 1 request
+            verify(1, getRequestedFor(urlEqualTo("/api/no-retry-404")));
+        }
+
+        @Test
+        @DisplayName("Should NOT retry on 401 Unauthorized - not in retryExceptions")
+        void shouldNotRetryOn401Unauthorized() throws Exception {
+            // 401 is not in retryExceptions, so it should not be retried
+            wireMockServer.stubFor(WireMock.get(urlEqualTo("/api/no-retry-401"))
+                    .willReturn(aResponse()
+                            .withStatus(401)
+                            .withHeader("Content-Type", "application/json")
+                            .withBody("{\"error\": \"Unauthorized\"}")));
+
+            mockMvc.perform(get("/api/demo/default")
+                            .param("url", "http://localhost:8089/api/no-retry-401"))
+                    .andExpect(status().isUnauthorized());
+
+            // Should NOT retry - only 1 request
+            verify(1, getRequestedFor(urlEqualTo("/api/no-retry-401")));
+        }
+
+        @Test
+        @DisplayName("Should NOT retry on 403 Forbidden - not in retryExceptions")
+        void shouldNotRetryOn403Forbidden() throws Exception {
+            // 403 is not in retryExceptions, so it should not be retried
+            wireMockServer.stubFor(WireMock.get(urlEqualTo("/api/no-retry-403"))
+                    .willReturn(aResponse()
+                            .withStatus(403)
+                            .withHeader("Content-Type", "application/json")
+                            .withBody("{\"error\": \"Forbidden\"}")));
+
+            mockMvc.perform(get("/api/demo/default")
+                            .param("url", "http://localhost:8089/api/no-retry-403"))
+                    .andExpect(status().isForbidden());
+
+            // Should NOT retry - only 1 request
+            verify(1, getRequestedFor(urlEqualTo("/api/no-retry-403")));
+        }
+
+        @Test
+        @DisplayName("Should NOT retry on 422 Unprocessable Entity - not in retryExceptions")
+        void shouldNotRetryOn422UnprocessableEntity() throws Exception {
+            wireMockServer.stubFor(WireMock.get(urlEqualTo("/api/no-retry-422"))
+                    .willReturn(aResponse()
+                            .withStatus(422)
+                            .withHeader("Content-Type", "application/json")
+                            .withBody("{\"error\": \"Unprocessable Entity\"}")));
+
+            mockMvc.perform(get("/api/demo/default")
+                            .param("url", "http://localhost:8089/api/no-retry-422"))
+                    .andExpect(status().isUnprocessableEntity());
+
+            // Should NOT retry - only 1 request
+            verify(1, getRequestedFor(urlEqualTo("/api/no-retry-422")));
+        }
+    }
+
+    @Nested
+    @DisplayName("Circuit Breaker Exception Recording Tests")
+    class CircuitBreakerExceptionRecordingTests {
+
+        @Test
+        @DisplayName("Should record 5xx errors in circuit breaker - configured in recordExceptions")
+        void shouldRecordServerErrorsInCircuitBreaker() throws Exception {
+            // Make multiple failed requests to trigger circuit breaker
+            wireMockServer.stubFor(WireMock.get(urlEqualTo("/api/cb-record-500"))
+                    .willReturn(aResponse().withStatus(500)));
+
+            // The circuit-breaker-only endpoint uses "externalApi" instance
+            CircuitBreaker circuitBreaker = circuitBreakerRegistry.circuitBreaker("externalApi");
+            circuitBreaker.reset();
+
+            // Make enough failed calls to record failures (minimumNumberOfCalls = 3 in test config)
+            for (int i = 0; i < 5; i++) {
+                mockMvc.perform(get("/api/demo/circuit-breaker-only")
+                        .param("url", "http://localhost:8089/api/cb-record-500"));
+            }
+
+            // Circuit breaker should have recorded failures
+            CircuitBreaker.Metrics metrics = circuitBreaker.getMetrics();
+            Assertions.assertTrue(metrics.getNumberOfFailedCalls() > 0,
+                    "Circuit breaker should record 5xx errors as failures");
+        }
+
+        @Test
+        @DisplayName("Should NOT record 400 Bad Request in circuit breaker - configured in ignoreExceptions")
+        void shouldNotRecord400InCircuitBreaker() throws Exception {
+            wireMockServer.stubFor(WireMock.get(urlEqualTo("/api/cb-ignore-400"))
+                    .willReturn(aResponse()
+                            .withStatus(400)
+                            .withBody("{\"error\": \"Bad Request\"}")));
+
+            // The circuit-breaker-only endpoint uses "externalApi" instance
+            CircuitBreaker circuitBreaker = circuitBreakerRegistry.circuitBreaker("externalApi");
+            circuitBreaker.reset();
+
+            // Make multiple requests with 400 errors
+            for (int i = 0; i < 5; i++) {
+                mockMvc.perform(get("/api/demo/circuit-breaker-only")
+                        .param("url", "http://localhost:8089/api/cb-ignore-400"));
+            }
+
+            // Circuit breaker should NOT record 400 as failures (it's in ignoreExceptions)
+            CircuitBreaker.Metrics metrics = circuitBreaker.getMetrics();
+            Assertions.assertEquals(0, metrics.getNumberOfFailedCalls(),
+                    "Circuit breaker should NOT record 400 errors as failures (ignoreExceptions)");
+        }
+
+        @Test
+        @DisplayName("Circuit breaker should stay CLOSED after ignored exceptions")
+        void circuitBreakerShouldStayClosedAfterIgnoredExceptions() throws Exception {
+            wireMockServer.stubFor(WireMock.get(urlEqualTo("/api/cb-stay-closed"))
+                    .willReturn(aResponse()
+                            .withStatus(400)
+                            .withBody("{\"error\": \"Bad Request\"}")));
+
+            // The circuit-breaker-only endpoint uses "externalApi" instance
+            CircuitBreaker circuitBreaker = circuitBreakerRegistry.circuitBreaker("externalApi");
+            circuitBreaker.reset();
+
+            // Make many requests with 400 errors
+            for (int i = 0; i < 10; i++) {
+                mockMvc.perform(get("/api/demo/circuit-breaker-only")
+                        .param("url", "http://localhost:8089/api/cb-stay-closed"));
+            }
+
+            // Circuit breaker should remain CLOSED because 400 is ignored
+            Assertions.assertEquals(CircuitBreaker.State.CLOSED, circuitBreaker.getState(),
+                    "Circuit breaker should remain CLOSED after ignored exceptions (400)");
+        }
+    }
 }

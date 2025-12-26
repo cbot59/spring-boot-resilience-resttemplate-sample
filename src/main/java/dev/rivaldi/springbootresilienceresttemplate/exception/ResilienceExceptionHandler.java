@@ -73,4 +73,25 @@ public class ResilienceExceptionHandler {
 
         return ResponseEntity.status(HttpStatus.BAD_GATEWAY).body(body);
     }
+
+    /**
+     * Handle HTTP client errors (4xx) from external services.
+     * These are typically non-retryable errors (bad request, not found, unauthorized, etc.)
+     * and should be propagated with their original status code.
+     */
+    @ExceptionHandler(org.springframework.web.client.HttpClientErrorException.class)
+    public ResponseEntity<Map<String, Object>> handleHttpClientError(
+            org.springframework.web.client.HttpClientErrorException ex) {
+        log.warn("External service returned client error: {} - {}",
+                ex.getStatusCode(), ex.getMessage());
+
+        Map<String, Object> body = new LinkedHashMap<>();
+        body.put("timestamp", LocalDateTime.now().toString());
+        body.put("status", ex.getStatusCode().value());
+        body.put("error", ex.getStatusText());
+        body.put("message", "Client error from external service.");
+        body.put("originalStatus", ex.getStatusCode().value());
+
+        return ResponseEntity.status(ex.getStatusCode()).body(body);
+    }
 }
