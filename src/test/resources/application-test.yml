@@ -1,0 +1,31 @@
+# Test-specific configuration that extends application.yml
+# Uses shorter timeouts for faster test execution
+
+# RestTemplate settings with shorter timeout for timeout tests
+rest-template:
+  connect-timeout: 2000
+  read-timeout: 3000
+
+# Resilience4j Configuration overrides for faster tests
+resilience4j:
+  circuitbreaker:
+    configs:
+      default:
+        waitDurationInOpenState: 2s
+        minimumNumberOfCalls: 3
+    instances:
+      default:
+        baseConfig: default
+      externalApi:
+        baseConfig: default
+
+  retry:
+    configs:
+      default:
+        waitDuration: 100ms
+        enableExponentialBackoff: false
+    instances:
+      default:
+        baseConfig: default
+      externalApi:
+        baseConfig: default

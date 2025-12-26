@@ -1,0 +1,77 @@
+spring:
+  application:
+    name: spring-boot-resilience-resttemplate
+
+# RestTemplate settings
+rest-template:
+  connect-timeout: 5000
+  read-timeout: 30000
+
+# Resilience4j Configuration
+resilience4j:
+  # Circuit Breaker Configuration
+  circuitbreaker:
+    configs:
+      default:
+        registerHealthIndicator: true
+        slidingWindowSize: 10
+        slidingWindowType: COUNT_BASED
+        minimumNumberOfCalls: 5
+        permittedNumberOfCallsInHalfOpenState: 3
+        automaticTransitionFromOpenToHalfOpenEnabled: true
+        waitDurationInOpenState: 10s
+        failureRateThreshold: 50
+        eventConsumerBufferSize: 10
+        recordExceptions:
+          - java.io.IOException
+          - java.net.SocketTimeoutException
+          - org.springframework.web.client.HttpServerErrorException
+        ignoreExceptions:
+          - org.springframework.web.client.HttpClientErrorException$BadRequest
+    instances:
+      default:
+        baseConfig: default
+      externalApi:
+        baseConfig: default
+      paymentService:
+        baseConfig: default
+        waitDurationInOpenState: 30s
+        failureRateThreshold: 30
+
+  # Retry Configuration
+  retry:
+    configs:
+      default:
+        maxAttempts: 3
+        waitDuration: 1s
+        enableExponentialBackoff: true
+        exponentialBackoffMultiplier: 2
+        retryExceptions:
+          - java.io.IOException
+          - java.net.SocketTimeoutException
+          - org.springframework.web.client.HttpServerErrorException
+        ignoreExceptions:
+          - org.springframework.web.client.HttpClientErrorException$BadRequest
+          - org.springframework.web.client.HttpClientErrorException$NotFound
+    instances:
+      default:
+        baseConfig: default
+      externalApi:
+        baseConfig: default
+      paymentService:
+        baseConfig: default
+        maxAttempts: 5
+        waitDuration: 500ms
+
+# Actuator endpoints for monitoring
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,metrics,circuitbreakers,circuitbreakerevents,retries,retryevents
+  endpoint:
+    health:
+      show-details: always
+  health:
+    circuitbreakers:
+      enabled: true
