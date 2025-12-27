@@ -1,17 +1,20 @@
 package dev.rivaldi.springbootresilienceresttemplate.service;
 
 import dev.rivaldi.springbootresilienceresttemplate.resilience.ResilientRestTemplate;
+import dev.rivaldi.springbootresilienceresttemplate.resilience.ResilientRestTemplateFactory;
 import dev.rivaldi.springbootresilienceresttemplate.resilience.ResilienceOptions;
 import io.github.resilience4j.circuitbreaker.annotation.CircuitBreaker;
 import io.github.resilience4j.retry.annotation.Retry;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.boot.web.client.RestTemplateBuilder;
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
+
+import java.time.Duration;
 
 /**
  * Example service demonstrating different approaches to use resilience patterns.
@@ -19,15 +22,29 @@ import org.springframework.web.client.RestTemplate;
  */
 @Slf4j
 @Service
-@RequiredArgsConstructor
 public class ExternalApiService {
 
     private final ResilientRestTemplate resilientRestTemplate;
     private final RestTemplate restTemplate;
-
-    // Also inject the plain RestTemplate for cases where resilience should be bypassed
-    @Qualifier("plainRestTemplate")
     private final RestTemplate plainRestTemplate;
+    private final ResilientRestTemplate customResilientRestTemplate;
+
+    public ExternalApiService(ResilientRestTemplate resilientRestTemplate,
+                               RestTemplate restTemplate,
+                               @Qualifier("plainRestTemplate") RestTemplate plainRestTemplate,
+                               ResilientRestTemplateFactory factory,
+                               RestTemplateBuilder builder) {
+        this.resilientRestTemplate = resilientRestTemplate;
+        this.restTemplate = restTemplate;
+        this.plainRestTemplate = plainRestTemplate;
+
+        // Create a custom RestTemplate with different configuration and wrap it with resilience
+        RestTemplate customRestTemplate = builder
+                .setConnectTimeout(Duration.ofSeconds(10))
+                .setReadTimeout(Duration.ofSeconds(60))
+                .build();
+        this.customResilientRestTemplate = factory.wrap(customRestTemplate);
+    }
 
     // ============================================
     // APPROACH 1: Using ResilientRestTemplate (Programmatic)
@@ -137,5 +154,27 @@ public class ExternalApiService {
     public String callWithPlainRestTemplate(String url) {
         log.info("Calling external API with plain RestTemplate: {}", url);
         return plainRestTemplate.getForObject(url, String.class);
+    }
+
+    // ============================================
+    // APPROACH 4: Using custom RestTemplate wrapped with resilience
+    // ============================================
+
+    /**
+     * Call using a custom RestTemplate (different timeouts) wrapped with resilience.
+     * Demonstrates using ResilientRestTemplateFactory to wrap any RestTemplate instance.
+     * This custom RestTemplate has 10s connect timeout and 60s read timeout.
+     */
+    public String callWithCustomResilientRestTemplate(String url) {
+        log.info("Calling external API with custom resilient RestTemplate: {}", url);
+        return customResilientRestTemplate.getForObject("externalApi", url, String.class);
+    }
+
+    /**
+     * Call using custom RestTemplate with specific resilience options.
+     */
+    public String callWithCustomResilientRestTemplate(String url, ResilienceOptions options) {
+        log.info("Calling external API with custom resilient RestTemplate and options: {}", url);
+        return customResilientRestTemplate.getForObject("externalApi", url, String.class, options);
     }
 }

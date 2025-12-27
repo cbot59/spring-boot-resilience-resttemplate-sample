@@ -253,4 +253,36 @@ class DemoControllerIntegrationTest {
             verify(externalApiService).callWithPlainRestTemplate("http://localhost:8089/api/plain");
         }
     }
+
+    @Nested
+    @DisplayName("GET /api/demo/custom")
+    class CustomResilientRestTemplateTests {
+
+        @Test
+        @DisplayName("Should use custom resilient RestTemplate")
+        void shouldUseCustomResilientRestTemplate() throws Exception {
+            when(externalApiService.callWithCustomResilientRestTemplate(anyString()))
+                    .thenReturn("{\"message\": \"custom resilient success\"}");
+
+            mockMvc.perform(get("/api/demo/custom")
+                            .param("url", "http://localhost:8089/api/custom"))
+                    .andExpect(status().isOk())
+                    .andExpect(content().string(containsString("custom resilient success")));
+
+            verify(externalApiService).callWithCustomResilientRestTemplate("http://localhost:8089/api/custom");
+        }
+
+        @Test
+        @DisplayName("Should propagate error when custom resilient RestTemplate fails")
+        void shouldPropagateErrorOnCustomResilientFailure() throws Exception {
+            when(externalApiService.callWithCustomResilientRestTemplate(anyString()))
+                    .thenThrow(new HttpServerErrorException(org.springframework.http.HttpStatus.INTERNAL_SERVER_ERROR));
+
+            mockMvc.perform(get("/api/demo/custom")
+                            .param("url", "http://localhost:8089/api/custom"))
+                    .andExpect(status().is5xxServerError());
+
+            verify(externalApiService).callWithCustomResilientRestTemplate("http://localhost:8089/api/custom");
+        }
+    }
 }

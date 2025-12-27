@@ -1,5 +1,7 @@
 package dev.rivaldi.springbootresilienceresttemplate.config;
 
+import dev.rivaldi.springbootresilienceresttemplate.resilience.ResilientRestTemplate;
+import dev.rivaldi.springbootresilienceresttemplate.resilience.ResilientRestTemplateFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.web.client.RestTemplateBuilder;
 import org.springframework.context.annotation.Bean;
@@ -24,7 +26,7 @@ public class RestTemplateConfig {
     private int readTimeout;
 
     /**
-     * Primary RestTemplate bean used by ResilientRestTemplate wrapper.
+     * Primary RestTemplate bean used by the default ResilientRestTemplate.
      * Configured with connection and read timeouts.
      */
     @Bean
@@ -47,5 +49,16 @@ public class RestTemplateConfig {
                 .setConnectTimeout(Duration.ofMillis(connectTimeout))
                 .setReadTimeout(Duration.ofMillis(readTimeout))
                 .build();
+    }
+
+    /**
+     * Default ResilientRestTemplate bean wrapping the primary RestTemplate.
+     * For wrapping custom RestTemplate instances, inject {@link ResilientRestTemplateFactory}
+     * and use {@link ResilientRestTemplateFactory#wrap(RestTemplate)}.
+     */
+    @Bean
+    public ResilientRestTemplate resilientRestTemplate(RestTemplate restTemplate,
+                                                        ResilientRestTemplateFactory factory) {
+        return factory.wrap(restTemplate);
     }
 }

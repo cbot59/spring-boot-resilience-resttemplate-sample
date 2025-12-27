@@ -144,4 +144,16 @@ public class DemoController {
         String result = externalApiService.getDataWithAnnotations(ERROR_URL);
         return ResponseEntity.ok(result);
     }
+
+    /**
+     * Test with custom RestTemplate wrapped with resilience.
+     * Uses a different RestTemplate instance (10s connect, 60s read timeout).
+     * GET /api/demo/custom?url=https://example.com/api
+     */
+    @GetMapping("/custom")
+    public ResponseEntity<String> testCustomResilientRestTemplate(
+            @RequestParam(defaultValue = DEFAULT_URL) String url) {
+        String result = externalApiService.callWithCustomResilientRestTemplate(url);
+        return ResponseEntity.ok(result);
+    }
 }

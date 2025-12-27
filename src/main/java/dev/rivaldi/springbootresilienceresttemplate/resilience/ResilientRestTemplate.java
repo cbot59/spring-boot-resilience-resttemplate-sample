@@ -6,13 +6,11 @@ import io.github.resilience4j.retry.Retry;
 import io.github.resilience4j.retry.RetryRegistry;
 import lombok.AccessLevel;
 import lombok.Getter;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.ResponseEntity;
-import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestTemplate;
 
 import java.util.function.Supplier;
@@ -20,10 +18,15 @@ import java.util.function.Supplier;
 /**
  * A wrapper around RestTemplate that provides resilience patterns (retry and circuit breaker)
  * with the ability to enable/disable them per request.
+ *
+ * <p>Create instances using {@link ResilientRestTemplateFactory#wrap(RestTemplate)} to wrap
+ * any RestTemplate with resilience patterns:
+ * <pre>{@code
+ * ResilientRestTemplate resilientTemplate = factory.wrap(myRestTemplate);
+ * resilientTemplate.getForObject("externalApi", url, String.class);
+ * }</pre>
  */
 @Slf4j
-@Component
-@RequiredArgsConstructor
 public class ResilientRestTemplate {
 
     @Getter(AccessLevel.PACKAGE)
@@ -32,6 +35,22 @@ public class ResilientRestTemplate {
     private final RetryRegistry retryRegistry;
 
     private static final String DEFAULT_INSTANCE = "default";
+
+    /**
+     * Creates a ResilientRestTemplate wrapping the given RestTemplate.
+     * Prefer using {@link ResilientRestTemplateFactory#wrap(RestTemplate)} instead.
+     *
+     * @param restTemplate the RestTemplate to wrap with resilience patterns
+     * @param circuitBreakerRegistry the circuit breaker registry
+     * @param retryRegistry the retry registry
+     */
+    public ResilientRestTemplate(RestTemplate restTemplate,
+                                  CircuitBreakerRegistry circuitBreakerRegistry,
+                                  RetryRegistry retryRegistry) {
+        this.restTemplate = restTemplate;
+        this.circuitBreakerRegistry = circuitBreakerRegistry;
+        this.retryRegistry = retryRegistry;
+    }
 
     // ============================================
     // Exchange methods

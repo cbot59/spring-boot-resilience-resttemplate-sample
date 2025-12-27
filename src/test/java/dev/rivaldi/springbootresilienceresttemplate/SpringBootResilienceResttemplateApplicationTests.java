@@ -603,6 +603,83 @@ class SpringBootResilienceResttemplateApplicationTests {
     }
 
     @Nested
+    @DisplayName("GET /api/demo/custom - Custom ResilientRestTemplate")
+    class CustomResilientRestTemplateE2ETests {
+
+        @Test
+        @DisplayName("Should return success using custom resilient RestTemplate")
+        void shouldReturnSuccessWithCustomResilientRestTemplate() throws Exception {
+            wireMockServer.stubFor(WireMock.get(urlEqualTo("/api/custom-test"))
+                    .willReturn(aResponse()
+                            .withStatus(200)
+                            .withHeader("Content-Type", "application/json")
+                            .withBody("{\"message\": \"custom resilient success\"}")));
+
+            mockMvc.perform(get("/api/demo/custom")
+                            .param("url", "http://localhost:8089/api/custom-test"))
+                    .andExpect(status().isOk())
+                    .andExpect(content().string(containsString("custom resilient success")));
+
+            verify(1, getRequestedFor(urlEqualTo("/api/custom-test")));
+        }
+
+        @Test
+        @DisplayName("Should retry on 5xx error using custom resilient RestTemplate")
+        void shouldRetryOnServerErrorWithCustomResilientRestTemplate() throws Exception {
+            wireMockServer.stubFor(WireMock.get(urlEqualTo("/api/custom-retry"))
+                    .inScenario("Custom Retry Scenario")
+                    .whenScenarioStateIs("Started")
+                    .willReturn(aResponse().withStatus(500))
+                    .willSetStateTo("First Retry"));
+
+            wireMockServer.stubFor(WireMock.get(urlEqualTo("/api/custom-retry"))
+                    .inScenario("Custom Retry Scenario")
+                    .whenScenarioStateIs("First Retry")
+                    .willReturn(aResponse()
+                            .withStatus(200)
+                            .withHeader("Content-Type", "application/json")
+                            .withBody("{\"message\": \"custom success after retry\"}")));
+
+            mockMvc.perform(get("/api/demo/custom")
+                            .param("url", "http://localhost:8089/api/custom-retry"))
+                    .andExpect(status().isOk())
+                    .andExpect(content().string(containsString("custom success after retry")));
+
+            verify(2, getRequestedFor(urlEqualTo("/api/custom-retry")));
+        }
+
+        @Test
+        @DisplayName("Should fail after exhausting all retries with custom resilient RestTemplate")
+        void shouldFailAfterAllRetriesWithCustomResilientRestTemplate() throws Exception {
+            wireMockServer.stubFor(WireMock.get(urlEqualTo("/api/custom-fail"))
+                    .willReturn(aResponse().withStatus(500)));
+
+            mockMvc.perform(get("/api/demo/custom")
+                            .param("url", "http://localhost:8089/api/custom-fail"))
+                    .andExpect(status().is5xxServerError());
+
+            verify(moreThanOrExactly(2), getRequestedFor(urlEqualTo("/api/custom-fail")));
+        }
+
+        @Test
+        @DisplayName("Should NOT retry on 4xx client errors with custom resilient RestTemplate")
+        void shouldNotRetryOnClientErrorWithCustomResilientRestTemplate() throws Exception {
+            wireMockServer.stubFor(WireMock.get(urlEqualTo("/api/custom-400"))
+                    .willReturn(aResponse()
+                            .withStatus(400)
+                            .withHeader("Content-Type", "application/json")
+                            .withBody("{\"error\": \"Bad Request\"}")));
+
+            mockMvc.perform(get("/api/demo/custom")
+                            .param("url", "http://localhost:8089/api/custom-400"))
+                    .andExpect(status().isBadRequest());
+
+            // Should NOT retry on 4xx - only 1 request
+            verify(1, getRequestedFor(urlEqualTo("/api/custom-400")));
+        }
+    }
+
+    @Nested
     @DisplayName("Circuit Breaker Exception Recording Tests")
     class CircuitBreakerExceptionRecordingTests {
 

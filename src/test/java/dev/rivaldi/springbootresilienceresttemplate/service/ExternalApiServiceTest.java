@@ -1,6 +1,7 @@
 package dev.rivaldi.springbootresilienceresttemplate.service;
 
 import dev.rivaldi.springbootresilienceresttemplate.resilience.ResilientRestTemplate;
+import dev.rivaldi.springbootresilienceresttemplate.resilience.ResilientRestTemplateFactory;
 import dev.rivaldi.springbootresilienceresttemplate.resilience.ResilienceOptions;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -10,11 +11,14 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.boot.web.client.RestTemplateBuilder;
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.client.RestTemplate;
+
+import java.time.Duration;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.*;
@@ -28,19 +32,41 @@ class ExternalApiServiceTest {
     private ResilientRestTemplate resilientRestTemplate;
 
     @Mock
+    private ResilientRestTemplate customResilientRestTemplate;
+
+    @Mock
     private RestTemplate restTemplate;
 
     @Mock
     private RestTemplate plainRestTemplate;
 
+    @Mock
+    private RestTemplate customRestTemplate;
+
+    @Mock
+    private ResilientRestTemplateFactory factory;
+
+    @Mock
+    private RestTemplateBuilder builder;
+
     private ExternalApiService externalApiService;
 
     @BeforeEach
     void setUp() {
+        // Set up RestTemplateBuilder mock chain
+        when(builder.setConnectTimeout(any(Duration.class))).thenReturn(builder);
+        when(builder.setReadTimeout(any(Duration.class))).thenReturn(builder);
+        when(builder.build()).thenReturn(customRestTemplate);
+
+        // Set up factory to return custom resilient rest template
+        when(factory.wrap(customRestTemplate)).thenReturn(customResilientRestTemplate);
+
         externalApiService = new ExternalApiService(
                 resilientRestTemplate,
                 restTemplate,
-                plainRestTemplate
+                plainRestTemplate,
+                factory,
+                builder
         );
     }
 
@@ -228,6 +254,65 @@ class ExternalApiServiceTest {
             assertThat(result).isEqualTo("plain-response");
             verify(plainRestTemplate).getForObject(url, String.class);
             verifyNoInteractions(resilientRestTemplate);
+        }
+    }
+
+    @Nested
+    @DisplayName("Custom ResilientRestTemplate Tests")
+    class CustomResilientRestTemplateTests {
+
+        @Test
+        @DisplayName("callWithCustomResilientRestTemplate should use custom wrapped RestTemplate")
+        void shouldUseCustomResilientRestTemplate() {
+            String url = "http://test.com/api";
+            when(customResilientRestTemplate.getForObject(
+                    eq("externalApi"),
+                    anyString(),
+                    eq(String.class)
+            )).thenReturn("custom-response");
+
+            String result = externalApiService.callWithCustomResilientRestTemplate(url);
+
+            assertThat(result).isEqualTo("custom-response");
+            verify(customResilientRestTemplate).getForObject("externalApi", url, String.class);
+            verifyNoInteractions(resilientRestTemplate);
+        }
+
+        @Test
+        @DisplayName("callWithCustomResilientRestTemplate with options should pass options")
+        void shouldPassOptionsToCustomResilientRestTemplate() {
+            String url = "http://test.com/api";
+            ResilienceOptions options = ResilienceOptions.retryOnly();
+
+            when(customResilientRestTemplate.getForObject(
+                    eq("externalApi"),
+                    anyString(),
+                    eq(String.class),
+                    any(ResilienceOptions.class)
+            )).thenReturn("custom-with-options-response");
+
+            String result = externalApiService.callWithCustomResilientRestTemplate(url, options);
+
+            assertThat(result).isEqualTo("custom-with-options-response");
+
+            ArgumentCaptor<ResilienceOptions> optionsCaptor = ArgumentCaptor.forClass(ResilienceOptions.class);
+            verify(customResilientRestTemplate).getForObject(
+                    eq("externalApi"),
+                    eq(url),
+                    eq(String.class),
+                    optionsCaptor.capture()
+            );
+
+            ResilienceOptions capturedOptions = optionsCaptor.getValue();
+            assertThat(capturedOptions.isRetryEnabled()).isTrue();
+            assertThat(capturedOptions.isCircuitBreakerEnabled()).isFalse();
+        }
+
+        @Test
+        @DisplayName("Factory should be called with custom RestTemplate during initialization")
+        void shouldWrapCustomRestTemplateWithFactory() {
+            // Verify that factory.wrap was called during service construction
+            verify(factory).wrap(customRestTemplate);
         }
     }
 }
