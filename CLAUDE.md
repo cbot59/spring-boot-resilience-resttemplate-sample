@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-A Spring Boot 2.7 sample application demonstrating Resilience4j integration with RestTemplate. It provides a `ResilientRestTemplate` wrapper that adds configurable retry and circuit breaker patterns to HTTP calls.
+A Spring Boot 2.7 sample application demonstrating Resilience4j integration with RestTemplate. It provides a `ResilientRestTemplate` wrapper that adds configurable retry and circuit breaker patterns to HTTP calls. The `ResilientRestTemplateFactory` allows wrapping any RestTemplate instance with resilience patterns.
 
 ## Build & Test Commands
 
@@ -51,18 +51,26 @@ Request → Retry (outer) → CircuitBreaker (inner) → RestTemplate → Extern
 | Component | Purpose |
 |-----------|---------|
 | `ResilientRestTemplate` | Programmatic resilience wrapper for RestTemplate |
+| `ResilientRestTemplateFactory` | Factory to wrap any RestTemplate instance with resilience |
 | `ResilienceOptions` | Per-request configuration (enable/disable retry/CB) |
-| `ExternalApiService` | Demo service showing programmatic and annotation approaches |
+| `ExternalApiService` | Demo service showing programmatic, annotation, and factory approaches |
 | `ResilienceExceptionHandler` | Global exception handler for resilience failures |
 
-### Two Approaches to Resilience
+### Three Approaches to Resilience
 
 1. **Programmatic** (via `ResilientRestTemplate`):
    ```java
    resilientRestTemplate.getForObject("externalApi", url, String.class, ResilienceOptions.retryOnly());
    ```
 
-2. **Annotation-based** (on service methods):
+2. **Factory** (wrap any RestTemplate with `ResilientRestTemplateFactory`):
+   ```java
+   RestTemplate customRestTemplate = builder.setReadTimeout(Duration.ofSeconds(60)).build();
+   ResilientRestTemplate resilient = factory.wrap(customRestTemplate);
+   resilient.getForObject("externalApi", url, String.class);
+   ```
+
+3. **Annotation-based** (on service methods):
    ```java
    @CircuitBreaker(name = "externalApi", fallbackMethod = "fallback")
    @Retry(name = "externalApi")
@@ -81,7 +89,7 @@ Resilience4j is configured in `application.yml` with named instances:
 - **`DemoControllerIntegrationTest`** - `@WebMvcTest` with mocked service (fast, isolated)
 - **`SpringBootResilienceResttemplateApplicationTests`** - Full E2E tests with WireMock and `@ActiveProfiles("test")`
 - **`ResilientRestTemplateTest`** - Unit tests for the resilience wrapper
-- **`ExternalApiServiceTest`** - Service layer unit tests
+- **`ExternalApiServiceTest`** - Service layer unit tests (includes factory usage tests)
 
 Test profile (`application-test.yml`) uses shorter timeouts (3s read timeout) for faster test execution.
 

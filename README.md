@@ -5,6 +5,7 @@ A Spring Boot sample application demonstrating how to integrate [Resilience4j](h
 ## Features
 
 - **ResilientRestTemplate** - Drop-in wrapper for RestTemplate with built-in resilience
+- **ResilientRestTemplateFactory** - Wrap any RestTemplate instance with resilience patterns
 - **Per-request configuration** - Enable/disable retry and circuit breaker per request
 - **Named instances** - Configure different resilience settings for different services
 - **Two approaches** - Programmatic (ResilientRestTemplate) and annotation-based (@Retry, @CircuitBreaker)
@@ -64,6 +65,39 @@ public class MyService {
         return resilientRestTemplate.getForObject(
             "default", url, String.class,
             ResilienceOptions.none()
+        );
+    }
+}
+```
+
+### Wrapping Custom RestTemplate (Factory Approach)
+
+Use `ResilientRestTemplateFactory` to wrap any RestTemplate instance with resilience:
+
+```java
+@Service
+public class MyService {
+    private final ResilientRestTemplate customResilientRestTemplate;
+
+    public MyService(ResilientRestTemplateFactory factory, RestTemplateBuilder builder) {
+        // Create a custom RestTemplate with specific configuration
+        RestTemplate customRestTemplate = builder
+                .setConnectTimeout(Duration.ofSeconds(10))
+                .setReadTimeout(Duration.ofSeconds(60))
+                .build();
+
+        // Wrap it with resilience patterns
+        this.customResilientRestTemplate = factory.wrap(customRestTemplate);
+    }
+
+    public String getData(String url) {
+        return customResilientRestTemplate.getForObject("externalApi", url, String.class);
+    }
+
+    public String getDataWithOptions(String url) {
+        return customResilientRestTemplate.getForObject(
+            "externalApi", url, String.class,
+            ResilienceOptions.retryOnly()
         );
     }
 }
@@ -164,6 +198,7 @@ The application exposes demo endpoints to test different resilience configuratio
 | `GET /api/demo/no-resilience?url=...` | No resilience |
 | `GET /api/demo/annotation?url=...` | Annotation-based with fallback |
 | `GET /api/demo/plain?url=...` | Plain RestTemplate |
+| `GET /api/demo/custom?url=...` | Custom RestTemplate wrapped with resilience |
 | `POST /api/demo/post?url=...` | POST with resilience |
 
 Example:
@@ -212,17 +247,18 @@ The project includes:
 ```
 src/main/java/dev/rivaldi/springbootresilienceresttemplate/
 ├── config/
-│   ├── ResilienceConfig.java      # Resilience4j bean configuration
-│   └── RestTemplateConfig.java    # RestTemplate bean configuration
+│   ├── ResilienceConfig.java            # Resilience4j bean configuration
+│   └── RestTemplateConfig.java          # RestTemplate bean configuration
 ├── controller/
-│   └── DemoController.java        # Demo REST endpoints
+│   └── DemoController.java              # Demo REST endpoints
 ├── exception/
 │   └── ResilienceExceptionHandler.java  # Global exception handler
 ├── resilience/
-│   ├── ResilientRestTemplate.java # Core resilience wrapper
-│   └── ResilienceOptions.java     # Per-request options
+│   ├── ResilientRestTemplate.java       # Core resilience wrapper
+│   ├── ResilientRestTemplateFactory.java # Factory to wrap any RestTemplate
+│   └── ResilienceOptions.java           # Per-request options
 └── service/
-    └── ExternalApiService.java    # Example service usage
+    └── ExternalApiService.java          # Example service usage
 ```
 
 ## How It Works
