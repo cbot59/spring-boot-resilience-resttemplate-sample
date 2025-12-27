@@ -10,7 +10,7 @@
     </parent>
     <groupId>dev.rivaldi</groupId>
     <artifactId>spring-boot-resilience-resttemplate-sample</artifactId>
-    <version>0.0.1-SNAPSHOT</version>
+    <version>${revision}</version>
     <name>spring-boot-resilience-resttemplate</name>
     <description>spring-boot-resilience-resttemplate</description>
     <url/>
@@ -36,6 +36,10 @@
         <resilience4j-spring-boot2.version>1.7.0</resilience4j-spring-boot2.version>
         <wiremock-jre8-standalone.version>2.35.1</wiremock-jre8-standalone.version>
         <spring-boot.version>2.7.18</spring-boot.version>
+        <!-- Versioning properties -->
+        <revision>1.0.0-${build.timestamp}</revision>
+        <maven.build.timestamp.format>yyyyMMdd.HHmmss</maven.build.timestamp.format>
+        <build.timestamp>${maven.build.timestamp}</build.timestamp>
     </properties>
     <dependencies>
         <dependency>
@@ -82,6 +86,31 @@
 
     <build>
         <plugins>
+            <plugin>
+                <groupId>org.codehaus.mojo</groupId>
+                <artifactId>flatten-maven-plugin</artifactId>
+                <version>1.7.3</version>
+                <configuration>
+                    <updatePomFile>true</updatePomFile>
+                    <flattenMode>resolveCiFriendliesOnly</flattenMode>
+                </configuration>
+                <executions>
+                    <execution>
+                        <id>flatten</id>
+                        <phase>process-resources</phase>
+                        <goals>
+                            <goal>flatten</goal>
+                        </goals>
+                    </execution>
+                    <execution>
+                        <id>flatten.clean</id>
+                        <phase>clean</phase>
+                        <goals>
+                            <goal>clean</goal>
+                        </goals>
+                    </execution>
+                </executions>
+            </plugin>
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-compiler-plugin</artifactId>
